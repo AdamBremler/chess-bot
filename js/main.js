@@ -6,7 +6,7 @@ var canvas;
 var ctx;
 var canvasSize = 1000;
 
-const blackTheme = "#333";
+const blackTheme = "#444";
 const whiteTheme = "#ddd";
 var board;
 
@@ -29,11 +29,11 @@ function update() {
 
 function drawRect(x, y, width, height, color) {
     ctx.fillStyle = color;
-    ctx.fillRect(parseInt(x), parseInt(y), parseInt(width), parseInt(height));
+    ctx.fillRect(Math.round(x), Math.round(y), Math.round(width), Math.round(height));
 }
 
 function drawImage(image, x, y, width, height) {
-    ctx.drawImage(image, x, y, width, height);
+    ctx.drawImage(image, Math.round(x), Math.round(y), Math.round(width), Math.round(height));
 }
 
 function getImage(file) {

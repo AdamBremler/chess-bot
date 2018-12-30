@@ -6,7 +6,7 @@ class Board {
         this.pieces = this.createPieces();
         this.isMouseDown = false;
         this.selectedPiece = null;
-        this.selectedPieceOrigin = null;
+        //this.selectedPieceOrigin = null;
 
         this.addEventListeners();
     }
@@ -31,39 +31,39 @@ class Board {
 
     createPieces() {
         return [
-            new Rook(this, this.squareToPos(1, 1), "white"),
-            new Knight(this, this.squareToPos(2, 1), "white"),
-            new Bishop(this, this.squareToPos(3, 1), "white"),
-            new Queen(this, this.squareToPos(4, 1), "white"),
-            new King(this, this.squareToPos(5, 1), "white"),
-            new Bishop(this, this.squareToPos(6, 1), "white"),
-            new Knight(this, this.squareToPos(7, 1), "white"),
-            new Rook(this, this.squareToPos(8, 1), "white"),
-            new Pawn(this, this.squareToPos(1, 2), "white"),
-            new Pawn(this, this.squareToPos(2, 2), "white"),
-            new Pawn(this, this.squareToPos(3, 2), "white"),
-            new Pawn(this, this.squareToPos(4, 2), "white"),
-            new Pawn(this, this.squareToPos(5, 2), "white"),
-            new Pawn(this, this.squareToPos(6, 2), "white"),
-            new Pawn(this, this.squareToPos(7, 2), "white"),
-            new Pawn(this, this.squareToPos(8, 2), "white"),
+            new Rook(this, this.squarePointsToPos(1, 1), "white"),
+            new Knight(this, this.squarePointsToPos(2, 1), "white"),
+            new Bishop(this, this.squarePointsToPos(3, 1), "white"),
+            new Queen(this, this.squarePointsToPos(4, 1), "white"),
+            new King(this, this.squarePointsToPos(5, 1), "white"),
+            new Bishop(this, this.squarePointsToPos(6, 1), "white"),
+            new Knight(this, this.squarePointsToPos(7, 1), "white"),
+            new Rook(this, this.squarePointsToPos(8, 1), "white"),
+            new Pawn(this, this.squarePointsToPos(1, 2), "white"),
+            new Pawn(this, this.squarePointsToPos(2, 2), "white"),
+            new Pawn(this, this.squarePointsToPos(3, 2), "white"),
+            new Pawn(this, this.squarePointsToPos(4, 2), "white"),
+            new Pawn(this, this.squarePointsToPos(5, 2), "white"),
+            new Pawn(this, this.squarePointsToPos(6, 2), "white"),
+            new Pawn(this, this.squarePointsToPos(7, 2), "white"),
+            new Pawn(this, this.squarePointsToPos(8, 2), "white"),
 
-            new Rook(this, this.squareToPos(1, 8), "black"),
-            new Knight(this, this.squareToPos(2, 8), "black"),
-            new Bishop(this, this.squareToPos(3, 8), "black"),
-            new Queen(this, this.squareToPos(4, 8), "black"),
-            new King(this, this.squareToPos(5, 8), "black"),
-            new Bishop(this, this.squareToPos(6, 8), "black"),
-            new Knight(this, this.squareToPos(7, 8), "black"),
-            new Rook(this, this.squareToPos(8, 8), "black"),
-            new Pawn(this, this.squareToPos(1, 7), "black"),
-            new Pawn(this, this.squareToPos(2, 7), "black"),
-            new Pawn(this, this.squareToPos(3, 7), "black"),
-            new Pawn(this, this.squareToPos(4, 7), "black"),
-            new Pawn(this, this.squareToPos(5, 7), "black"),
-            new Pawn(this, this.squareToPos(6, 7), "black"),
-            new Pawn(this, this.squareToPos(7, 7), "black"),
-            new Pawn(this, this.squareToPos(8, 7), "black")
+            new Rook(this, this.squarePointsToPos(1, 8), "black"),
+            new Knight(this, this.squarePointsToPos(2, 8), "black"),
+            new Bishop(this, this.squarePointsToPos(3, 8), "black"),
+            new Queen(this, this.squarePointsToPos(4, 8), "black"),
+            new King(this, this.squarePointsToPos(5, 8), "black"),
+            new Bishop(this, this.squarePointsToPos(6, 8), "black"),
+            new Knight(this, this.squarePointsToPos(7, 8), "black"),
+            new Rook(this, this.squarePointsToPos(8, 8), "black"),
+            new Pawn(this, this.squarePointsToPos(1, 7), "black"),
+            new Pawn(this, this.squarePointsToPos(2, 7), "black"),
+            new Pawn(this, this.squarePointsToPos(3, 7), "black"),
+            new Pawn(this, this.squarePointsToPos(4, 7), "black"),
+            new Pawn(this, this.squarePointsToPos(5, 7), "black"),
+            new Pawn(this, this.squarePointsToPos(6, 7), "black"),
+            new Pawn(this, this.squarePointsToPos(7, 7), "black"),
+            new Pawn(this, this.squarePointsToPos(8, 7), "black")
         ];
     }
 
@@ -75,7 +75,7 @@ class Board {
         for(let i = 0; i < this.pieces.length; i++) {
             if(this.onSquare(point, rect(this.pieces[i].position.x, this.pieces[i].position.y, this.squareSize, this.squareSize))) {
                 this.selectedPiece = this.pieces[i];
-                this.selectedPieceOrigin = JSON.parse(JSON.stringify(this.selectedPiece.position));
+                //this.selectedPieceOrigin = JSON.parse(JSON.stringify(this.selectedPiece.position)); Replaced by piece.currentSquare
                 this.isMouseDown = true;
 
                 return;
@@ -89,26 +89,47 @@ class Board {
         }
 
         let square = pos(Math.floor(point.x / this.squareSize) * this.squareSize, Math.floor(point.y / this.squareSize) * this.squareSize);
-        this.selectedPiece.position = square;
-        
-        for(let i = 0; i < this.pieces.length; i++) {
-            if(JSON.stringify(this.pieces[i].position) == JSON.stringify(square) && this.pieces[i] != this.selectedPiece) {
+        /* let square = pos(point.x, point.y); */
+        let move = new Move(this, this.selectedPiece, this.squareToPos(this.selectedPiece.currentSquare), square);
 
-                if(this.pieces[i].color == this.selectedPiece.color) {
-                    console.log("same");
-                    console.log(this.selectedPieceOrigin, this.selectedPiece.position);
-                    this.selectedPiece.position = this.selectedPieceOrigin;
-                    console.log(this.selectedPiece.position);
-                } else {
-                    this.pieces.splice(i, 1);
-                    break;
+        // If move is allowed
+        let t1 = performance.now();
+        if(this.selectedPiece.moveAllowed(move)) {
+            this.move(move);
+            //this.selectedPiece.position = square;
+
+            /* for(let i = 0; i < this.pieces.length; i++) {
+                if(JSON.stringify(this.pieces[i].position) == JSON.stringify(square) && this.pieces[i] != this.selectedPiece) {
+                    if(this.pieces[i].color == this.selectedPiece.color) {
+                        this.selectedPiece.position = this.selectedPieceOrigin;
+                    } else {
+                        this.pieces.splice(i, 1);
+                        break;
+                    }
                 }
-            }
+            } */
+
+            this.selectedPiece.addMove(move);
+
+            console.log("moved");
+        }
+        
+        // If move is not allowed
+        else {
+            this.selectedPiece.position = this.squareToPos(this.selectedPiece.currentSquare);
         }
 
+        console.log(`Performance time: ${performance.now() - t1}`);
+            
         this.selectedPiece = null;
 
         this.isMouseDown = false;
+    }
+
+    move(move) {
+        if(move.targetOccupied) {
+            this.removePiece(move.targetPiece);
+        }
     }
 
     mouseMove(point) {
@@ -118,18 +139,16 @@ class Board {
     }
 
     addEventListeners() {
-        let thisBoard = this; // TODO: Better solution?
-
-        this.canvas.addEventListener("mousedown", function(event) {
-            thisBoard.mouseDown(getMousePos(this, event));
+        this.canvas.addEventListener("mousedown", event => {
+            this.mouseDown(getMousePos(this.canvas, event));
         });
 
-        this.canvas.addEventListener("mouseup", function(event) {
-            thisBoard.mouseUp(getMousePos(this, event));
+        this.canvas.addEventListener("mouseup", event => {
+            this.mouseUp(getMousePos(this.canvas, event));
         });
 
-        this.canvas.addEventListener("mousemove", function(event) {
-            thisBoard.mouseMove(getMousePos(this, event));
+        this.canvas.addEventListener("mousemove", event => {
+            this.mouseMove(getMousePos(this.canvas, event));
         });
     }
 
@@ -137,7 +156,61 @@ class Board {
         return point.x >= box.x && point.x < box.x + box.width && point.y >= box.y && point.y < box.y + box.height;
     }
 
-    squareToPos(x, y) {
-        return pos((x - 1) * this.squareSize, (8 - y) * this.squareSize);
+    squareToPos(square) {
+        return pos((square.x - 1) * this.squareSize, (8 - square.y) * this.squareSize);
+    }
+
+    squarePointsToPos(x, y) {
+        return this.squareToPos({ x, y });
+    }
+
+    posToSquare(position) {
+        let roundPos = this.posToRoundPos(position);
+        return pos((roundPos.x - (roundPos.x % this.squareSize)) / this.squareSize + 1, 8 - (roundPos.y - (roundPos.y % this.squareSize)) / this.squareSize);
+    }
+
+    posToRoundPos(position) {
+        return pos(Math.floor(position.x / this.squareSize) * this.squareSize, Math.floor(position.y / this.squareSize) * this.squareSize);
+    }
+
+    getDistance(pos1, pos2) {
+        return Math.max(Math.abs(pos1.x / this.squareSize - pos2.x / this.squareSize), Math.abs(pos1.y / this.squareSize - pos2.y / this.squareSize));
+    }
+
+    jsonCompare(s1, s2) {
+        return JSON.stringify(s1) === JSON.stringify(s2);
+    }
+
+    // TODO: better comparison with boxes
+    squareOccupied(square) {
+        for(let i = 0; i < this.pieces.length; i++) {
+            //if(this.jsonCompare(square, this.posToSquare(this.pieces[i].position)) && this.pieces[i] !== excludedPiece) {
+            if(this.jsonCompare(square, this.pieces[i].currentSquare)) {
+                return this.pieces[i];
+            }
+        }
+
+        return false;
+    }
+
+    removePiece(piece) {
+        this.pieces.splice(this.pieces.indexOf(piece), 1);
+    }
+
+    squareEquals(s1, s2) {
+        return s1.x === s2.x && s1.y === s2.y;
+    }
+
+    // Color filter is optional
+    getPieces(type, color = false) {
+        let typePieces = [];
+
+        for(let i = 0; i < this.pieces.length; i++) {
+            if(this.pieces[i].isType(type) && (color === false || this.pieces[i].color === color)) {
+                typePieces.push(this.pieces[i]);
+            }
+        }
+
+        return typePieces;
     }
 }
