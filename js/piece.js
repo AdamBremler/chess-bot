@@ -4,7 +4,7 @@ class Piece {
         this.position = position;
         this.color = color;
         this.image = image;
-        this.padding = this.board.squareSize / 5;
+        this.padding = this.board.squareSize / 4;
         this.moves = [];
         this.currentSquare = this.board.posToSquare(this.position);
     }
@@ -13,20 +13,17 @@ class Piece {
         drawImage(this.image, this.position.x + this.padding / 2, this.position.y + this.padding / 2, this.board.squareSize - this.padding, this.board.squareSize - this.padding);
     }
 
-    /* moveAllowed(move) {
-        for(let i = 0; i < move.board.pieces.length; i++) {
-            if(JSON.stringify(move.board.pieces[i].position) == JSON.stringify(move.toSquare) && this.pieces[i] != this.selectedPiece) {
-                if(this.pieces[i].color == this.selectedPiece.color) {
-                    this.selectedPiece.position = this.selectedPieceOrigin;
-                } else {
-                    this.pieces.splice(i, 1);
-                    break;
-                }
-            }
+    moveGenerallyAllowed(move, checkForCheck) {
+        // Kings can't be captured (Unable to check for checks if no king on board)
+        if(checkForCheck && move.targetOccupied && move.targetPiece.isType(King)) {
+            return false;
         }
-    } */
 
-    moveGenerallyAllowed(move) {
+        // If target square out of bounds (unnecessary???)
+        if(!move.inBounds()) {
+            return false;
+        }
+
         // If same square
         if(this.board.squareEquals(move.toSquare, this.currentSquare)) {
             return false;
@@ -42,13 +39,40 @@ class Piece {
             return false;
         }
 
+        // If in check
+        if(checkForCheck && this.board.inCheckAfter(move, this.color)) {
+            return false;
+        }
+
         return true;
+    }
+
+    getAllowedMoves(checkForCheck) {
+        let allowedMoves = [];
+
+        let moveCheckList = this.getPossibleMovesChecklist();
+        for(let i = 0; i < moveCheckList.length; i++) {
+            if(this.moveAllowed(moveCheckList[i], checkForCheck)) {
+                allowedMoves.push(moveCheckList[i]);
+            }
+        }
+
+        return allowedMoves;
     }
 
     addMove(move) {
         this.moves.push(move);
-        this.position = move.to;
-        this.currentSquare = this.board.posToSquare(this.position);
+        this.setPosition(move.to);
+    }
+
+    removeMove(move) {
+        spliceByValue(this.moves, move);
+        this.setPosition(move.from);
+    }
+
+    setPosition(position) {
+        this.position = position;
+        this.currentSquare = this.board.posToSquare(position);
     }
 
     sameColor(color) {
@@ -59,6 +83,10 @@ class Piece {
         return this instanceof pieceType;
     }
 
+    getType() {
+        return this.constructor.name;
+    }
+
     // TODO: color enum with getter
 }
 
@@ -67,8 +95,48 @@ class King extends Piece {
         super(board, position, color, getImage(color + "-king.png"));
     }
 
-    moveAllowed(move) {
-        if(!this.moveGenerallyAllowed(move)) {
+    get pieceValue() {
+        return 100000;
+    }
+
+    inCheck() {
+        let enemyPieces = this.board.getPieces(Piece, this.board.getOtherColor(this.color));
+
+        for(let i = 0; i < enemyPieces.length; i++) {
+            let piece = enemyPieces[i];
+
+            if(piece.moveAllowed(new Move(this.board, piece, piece.position, this.position), false)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    getPossibleMovesChecklist() {
+        let moveList = [];
+
+        for(let i = 0; i < DIRECTIONS.length; i++) {
+            let direction = DIRECTIONS[i];
+
+            for(let dist = 1; dist <= 2; dist++) {
+                let square = pos(this.currentSquare.x + direction.x * dist, this.currentSquare.y + direction.y * dist);
+
+                if(this.board.squareInBounds(square) && (dist === 1 || (this.moves.length === 0 && square.y === this.currentSquare.y))) {
+                    moveList.push(new Move(this.board, this, this.board.squareToPos(this.currentSquare), this.board.squareToPos(square)));
+                }
+
+                else {
+                    break;
+                }
+            }
+        }
+
+        return moveList;
+    }
+
+    moveAllowed(move, checkForCheck) {
+        if(!this.moveGenerallyAllowed(move, checkForCheck)) {
             return false;
         }
         
@@ -84,10 +152,9 @@ class King extends Piece {
             for(let i = 0; i < rooks.length; i++) {
                 if(rooks[i].moves.length === 0 && this.board.getDistance(move.fromSquare, rooks[i].currentSquare) > this.board.getDistance(move.toSquare, rooks[i].currentSquare)) {
                     let rookNewPos = pos((move.from.x + move.to.x) / 2, rooks[i].position.y);
-                    let rookMove = new Move(this.board, rooks[i], rooks[i].position, rookNewPos);
+                    let rookMove = new Move(this.board, rooks[i], rooks[i].position, rookNewPos, true);
                     
-                    if(rooks[i].moveAllowed(rookMove)) {
-                        rooks[i].addMove(rookMove);
+                    if(rooks[i].moveAllowed(rookMove, checkForCheck)) {
                         return true;
                     }
 
@@ -107,8 +174,34 @@ class Queen extends Piece {
         super(board, position, color, getImage(color + "-queen.png"));
     }
 
-    moveAllowed(move) {
-        if(!this.moveGenerallyAllowed(move)) {
+    get pieceValue() {
+        return 900;
+    }
+
+    getPossibleMovesChecklist() {
+        let moveList = [];
+
+        for(let i = 0; i < DIRECTIONS.length; i++) {
+            let direction = DIRECTIONS[i];
+
+            for(let dist = 1;; dist++) {
+                let square = pos(this.currentSquare.x + direction.x * dist, this.currentSquare.y + direction.y * dist);
+
+                if(this.board.squareInBounds(square)) {
+                    moveList.push(new Move(this.board, this, this.board.squareToPos(this.currentSquare), this.board.squareToPos(square)));
+                }
+
+                else {
+                    break;
+                }
+            }
+        }
+
+        return moveList;
+    }
+
+    moveAllowed(move, checkForCheck) {
+        if(!this.moveGenerallyAllowed(move, checkForCheck)) {
             return false;
         }
         
@@ -125,8 +218,34 @@ class Bishop extends Piece {
         super(board, position, color, getImage(color + "-bishop.png"));
     }
 
-    moveAllowed(move) {
-        if(!this.moveGenerallyAllowed(move)) {
+    get pieceValue() {
+        return 300;
+    }
+
+    getPossibleMovesChecklist() {
+        let moveList = [];
+
+        for(let i = 0; i < DIAGONAL_DIRECTIONS.length; i++) {
+            let direction = DIAGONAL_DIRECTIONS[i];
+
+            for(let dist = 1;; dist++) {
+                let square = pos(this.currentSquare.x + direction.x * dist, this.currentSquare.y + direction.y * dist);
+                
+                if(this.board.squareInBounds(square)) {
+                    moveList.push(new Move(this.board, this, this.board.squareToPos(this.currentSquare), this.board.squareToPos(square)));
+                }
+
+                else {
+                    break;
+                }
+            }
+        }
+
+        return moveList;
+    }
+
+    moveAllowed(move, checkForCheck) {
+        if(!this.moveGenerallyAllowed(move, checkForCheck)) {
             return false;
         }
 
@@ -143,11 +262,33 @@ class Knight extends Piece {
         super(board, position, color, getImage(color + "-knight.png"));
     }
 
-    moveAllowed(move) {
-        if(!this.moveGenerallyAllowed(move)) {
-            return false;
+    get pieceValue() {
+        return 300;
+    }
+
+    getPossibleMovesChecklist() {
+        let moveList = [];
+
+        for(let i = 0; i < DIAGONAL_DIRECTIONS.length; i++) {
+            let direction = DIAGONAL_DIRECTIONS[i];
+
+            let squares = [pos(this.currentSquare.x + direction.x, this.currentSquare.y + direction.y * 2), pos(this.currentSquare.x + direction.x * 2, this.currentSquare.y + direction.y)];
+            
+            for(let j = 0; j < squares.length; j++) {
+                if(this.board.squareInBounds(squares[j])) {
+                    moveList.push(new Move(this.board, this, this.board.squareToPos(this.currentSquare), this.board.squareToPos(squares[j])));
+                }
+            }
         }
 
+        return moveList;
+    }
+
+    moveAllowed(move, checkForCheck) {
+        if(!this.moveGenerallyAllowed(move, checkForCheck)) {
+            return false;
+        }
+        
         if(!move.diagonal && !move.straight && move.distance === 2) {
             return true;
         }
@@ -161,8 +302,34 @@ class Rook extends Piece {
         super(board, position, color, getImage(color + "-rook.png"));
     }
 
-    moveAllowed(move) {
-        if(!this.moveGenerallyAllowed(move)) {
+    get pieceValue() {
+        return 500;
+    }
+
+    getPossibleMovesChecklist() {
+        let moveList = [];
+
+        for(let i = 0; i < STRAIGHT_DIRECTIONS.length; i++) {
+            let direction = STRAIGHT_DIRECTIONS[i];
+
+            for(let dist = 1;; dist++) {
+                let square = pos(this.currentSquare.x + direction.x * dist, this.currentSquare.y + direction.y * dist);
+                
+                if(this.board.squareInBounds(square)) {
+                    moveList.push(new Move(this.board, this, this.board.squareToPos(this.currentSquare), this.board.squareToPos(square)));
+                }
+
+                else {
+                    break;
+                }
+            }
+        }
+
+        return moveList;
+    }
+
+    moveAllowed(move, checkForCheck) {
+        if(!this.moveGenerallyAllowed(move, checkForCheck)) {
             return false;
         }
         
@@ -179,8 +346,36 @@ class Pawn extends Piece {
         super(board, position, color, getImage(color + "-pawn.png"));
     }
 
-    moveAllowed(move) {
-        if(!this.moveGenerallyAllowed(move)) {
+    get pieceValue() {
+        return 100;
+    }
+
+    getPossibleMovesChecklist() {
+        let moveList = [];
+
+        for(let i = 0; i < DIRECTIONS.length; i++) {
+            let direction = DIRECTIONS[i];
+            
+            if((this.color === "white" && direction.y > 0) || (this.color === "black" && direction.y < 0)) {
+                let squares = [pos(this.currentSquare.x + direction.x, this.currentSquare.y + direction.y)];
+
+                if(direction.x === 0) {
+                    squares.push(pos(this.currentSquare.x, this.currentSquare.y + direction.y * 2));
+                }
+
+                for(let j = 0; j < squares.length; j++) {
+                    if(this.board.squareInBounds(squares[j])) {
+                        moveList.push(new Move(this.board, this, this.board.squareToPos(this.currentSquare), this.board.squareToPos(squares[j])));
+                    }
+                }
+            }
+        }
+
+        return moveList;
+    }
+
+    moveAllowed(move, checkForCheck) {
+        if(!this.moveGenerallyAllowed(move, checkForCheck)) {
             return false;
         }
         
@@ -192,7 +387,7 @@ class Pawn extends Piece {
             } else {
                 if(move.forward && (move.yDiff === 1 || move.fromSquare.y === 7))
                 return true;
-            }    
+            }
         }    
         
         // Regular capture

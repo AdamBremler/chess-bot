@@ -5,13 +5,22 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>Chessbot</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css?family=Lato" rel="stylesheet">
     <link rel="stylesheet" type="text/css" media="screen" href="css/main.css" />
+    <script src="js/square_values.js"></script>
     <script src="js/move.js"></script>
     <script src="js/piece.js"></script>
     <script src="js/board.js"></script>
     <script src="js/main.js"></script>
 </head>
 <body>
-    <canvas id="chess-board"></canvas>
+    <div class="flex-middle full-box">
+        <main>
+            <canvas id="chess-board"></canvas>
+            <div class="flex-middle">
+                <div id="advantage-display">0</div>
+            </div>
+        </main>
+    </div>
 </body>
 </html>

@@ -1,5 +1,5 @@
 class Move {
-    constructor(board, piece, from, to) {
+    constructor(board, piece, from, to, castling = false) {
         this.board = board;
         this.piece = piece;
         this.from = from;
@@ -23,6 +23,7 @@ class Move {
         this.targetOccupied = this.targetPiece === false ? false : true;
         this.targetColor = this.targetPiece !== false ? this.targetPiece.color : null;
         this.distance = board.getDistance(to, from);
+        this.castling = castling;
     }
 
     pathClear() {
@@ -36,5 +37,9 @@ class Move {
         }
 
         return true;
+    }
+
+    inBounds() {
+        return this.toSquare.x >= 1 && this.toSquare.x <= 8 && this.toSquare.y >= 1 && this.toSquare.y <= 8;
     }
 }

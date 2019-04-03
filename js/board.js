@@ -1,14 +1,63 @@
 class Board {
-    constructor(canvas, size) {
-        this.canvas = canvas;
-        this.size = size;
-        this.squareSize = this.canvas.width / size;
-        this.pieces = this.createPieces();
-        this.isMouseDown = false;
-        this.selectedPiece = null;
-        //this.selectedPieceOrigin = null;
+    constructor(testBoard = true, canvas = null, pieces = [], turn = "white", playerColor = "white", size = 8) {
+        
+        if(!testBoard) {
+            this.canvas = canvas;
+            this.squareSize = this.canvas.width / size;
+            this.isMouseDown = false;
+            this.selectedPiece = null;
+            this.playerColor = playerColor;
+            this.pieces = this.createPieces();
+            this.addEventListeners();
+        }
 
-        this.addEventListeners();
+        else {
+            this.squareSize = 1000 / size;
+
+            this.pieces = [];
+
+            for(let i = 0; i < pieces.length; i++) {
+                let piece = pieces[i];
+                let position = this.squareToPos(piece.currentSquare);
+
+                let pieceCopy;
+
+                if(piece instanceof King) {
+                    pieceCopy = new King(this, position, piece.color);
+                }
+
+                if(piece instanceof Queen) {
+                    pieceCopy = new Queen(this, position, piece.color);
+                }
+
+                if(piece instanceof Bishop) {
+                    pieceCopy = new Bishop(this, position, piece.color);
+                }
+
+                if(piece instanceof Knight) {
+                    pieceCopy = new Knight(this, position, piece.color);
+                }
+
+                if(piece instanceof Rook) {
+                    pieceCopy = new Rook(this, position, piece.color);
+                }
+
+                if(piece instanceof Pawn) {
+                    pieceCopy = new Pawn(this, position, piece.color);
+                }
+
+                this.pieces.push(pieceCopy);
+            }
+        }
+
+        this.size = size;
+        this.boardSize = size * this.squareSize;
+        this.turn = turn;
+        this.whiteCheck = false;
+        this.blackCheck = false;
+        this.moves = [];
+
+        this.advantage = this.getEvaluation();
     }
 
     draw() {
@@ -73,7 +122,7 @@ class Board {
         }
 
         for(let i = 0; i < this.pieces.length; i++) {
-            if(this.onSquare(point, rect(this.pieces[i].position.x, this.pieces[i].position.y, this.squareSize, this.squareSize))) {
+            if(this.pieces[i].color === this.playerColor && this.onSquare(point, rect(this.pieces[i].position.x, this.pieces[i].position.y, this.squareSize, this.squareSize))) {
                 this.selectedPiece = this.pieces[i];
                 //this.selectedPieceOrigin = JSON.parse(JSON.stringify(this.selectedPiece.position)); Replaced by piece.currentSquare
                 this.isMouseDown = true;
@@ -84,6 +133,7 @@ class Board {
     }
 
     mouseUp(point) {
+        let t1 = performance.now();
         if(!this.isMouseDown) {
             return;
         }
@@ -93,43 +143,249 @@ class Board {
         let move = new Move(this, this.selectedPiece, this.squareToPos(this.selectedPiece.currentSquare), square);
 
         // If move is allowed
-        let t1 = performance.now();
-        if(this.selectedPiece.moveAllowed(move)) {
+        if(this.selectedPiece.moveAllowed(move, true)) {
             this.move(move);
-            //this.selectedPiece.position = square;
-
-            /* for(let i = 0; i < this.pieces.length; i++) {
-                if(JSON.stringify(this.pieces[i].position) == JSON.stringify(square) && this.pieces[i] != this.selectedPiece) {
-                    if(this.pieces[i].color == this.selectedPiece.color) {
-                        this.selectedPiece.position = this.selectedPieceOrigin;
-                    } else {
-                        this.pieces.splice(i, 1);
-                        break;
-                    }
-                }
-            } */
-
-            this.selectedPiece.addMove(move);
-
-            console.log("moved");
+            debugger;
+            if(this.turn === "black") {
+                this.makeBotMove(this.turn);
+            }
         }
         
         // If move is not allowed
         else {
             this.selectedPiece.position = this.squareToPos(this.selectedPiece.currentSquare);
         }
-
-        console.log(`Performance time: ${performance.now() - t1}`);
-            
+        
         this.selectedPiece = null;
-
+        
         this.isMouseDown = false;
+
+        console.log("Time diff: ", (performance.now() - t1));
     }
 
     move(move) {
+        this.moves.push(move);
+        move.piece.addMove(move);
+
+        // Pawn promotion (Auto queen for now)
+        if(move.piece.isType(Pawn) && ((move.piece.color === "white" && move.toSquare.y === 8) || (move.piece.color === "black" && move.toSquare.y === 1))) {
+            this.pieces.push(new Queen(this, move.to, move.piece.color));
+            this.removePiece(move.piece);
+        }
+        
         if(move.targetOccupied) {
             this.removePiece(move.targetPiece);
         }
+
+        this.resetCheck();
+
+        this.turn = this.getOtherColor(this.turn);
+        
+        this.advantage = this.getEvaluation();
+
+        console.log("lol", this.turn)
+
+        // Castling
+        if(move.piece.isType(King) && move.distance === 2) {
+            move.castling = true;
+            this.castle(move);
+            this.turn = this.getOtherColor(this.turn);
+        }
+    }
+
+    castle(move) {
+        let rooks = this.getPieces(Rook, move.piece.color);
+
+        for(let i = 0; i < rooks.length; i++) {
+            if(rooks[i].moves.length === 0 && this.getDistance(move.fromSquare, rooks[i].currentSquare) > this.getDistance(move.toSquare, rooks[i].currentSquare)) {
+                let rookNewPos = pos((move.from.x + move.to.x) / 2, rooks[i].position.y);
+                let rookMove = new Move(this, rooks[i], rooks[i].position, rookNewPos, true);
+                
+                this.move(rookMove);
+                this.turn = this.getOtherColor(this.turn);
+
+                console.log("kek", this.turn)
+
+                return;
+            }
+        }
+    }
+
+    unmakeMove(move) {
+        // Promotion
+        if(!this.pieceOnBoard(move.piece)) {
+            this.removePiece(this.getPieceAt(move.toSquare));
+            this.pieces.push(move.piece);
+        }
+        
+        if(move.targetOccupied) {
+            this.pieces.push(move.targetPiece);
+        }
+        
+        move.piece.removeMove(move);
+        spliceByValue(this.moves, move);
+        
+        if(move.castling && move.piece.isType(Rook) && this.moves[this.moves.length - 1].castling && this.moves[this.moves.length - 1].piece.isType(King)) {
+            console.log("UNMAKING CASTLING")
+            this.unmakeLastMove();
+            this.turn = this.getOtherColor(this.turn);
+        }
+
+        this.resetCheck();
+
+        this.turn = this.getOtherColor(this.turn);
+
+        this.advantage = this.getEvaluation();
+    }
+
+    unmakeLastMove() {
+        if(this.moves.length > 0) {
+            let move = this.moves[this.moves.length - 1];
+            this.unmakeMove(move);
+        }
+
+        else {
+            return false;
+        }
+    }
+
+    unmakeMovesUntil(move = null) {
+        for(let i = this.moves.length - 1; i >= 0; i--) {
+            // If selected move exists. (It won't exist if last move was castling move)
+            if(this.moves[i] !== undefined) {
+                let selectedMove = this.moves[i];
+    
+                if(move === selectedMove) {
+                    return;
+                }
+    
+                else {
+                    this.unmakeMove(selectedMove);
+                }
+            }
+        }
+    }
+
+    unmakeAllMoves() {
+        this.unmakeMovesUntil();
+    }
+
+    makeBotMove(asColor) {
+        console.log(asColor)
+        // Getting pseudo-legal moves (legal without checking for check)
+        //let testBoard = new Board(true, null, this.pieces, this.turn);
+        //let possibleMoves = testBoard.getPossibleMoves(asColor, false);
+        let possibleMoves = this.getPossibleMoves(asColor, false);
+        console.log("Possible moves: ", possibleMoves.length);
+        
+        // No possible moves = Checkmate (inpossible when checking without check???)
+        if(possibleMoves.length === 0) {
+            alert("Checkmate!");
+            return;
+        }
+        
+        /* // Random move
+        for(let i = 0; i < possibleMoves.length; i++) {
+            let move = possibleMoves[i];
+
+            if(!this.inCheckAfter(move, asColor)) {
+                this.move(move);
+                console.log(performance.now() - kek);
+                return;
+            }
+        } */
+        
+        // Find best move
+        //this.move(this.getEvaluatedMoves(possibleMoves)[0]);
+        let k1 = performance.now();
+        //let evaluations = testBoard.getEvaluatedMoves(possibleMoves);
+        let evaluations = this.getEvaluatedMoves(possibleMoves);
+        console.log(performance.now() - k1);
+        
+        // White => Max value || Black => Min value
+        let descending = this.turn === "white";
+
+        let sortedEvaluations = sortWithIndices(evaluations, descending);
+
+        for(let i = 0; i < sortedEvaluations.length; i++) {
+            if(!this.inCheckAfter(possibleMoves[sortedEvaluations[i]])) {
+                let selectedTestMove = possibleMoves[sortedEvaluations[i]];
+                
+                //this.move(new Move(this, this.getPieceAt(selectedTestMove.fromSquare), selectedTestMove.from, selectedTestMove.to, selectedTestMove.castling));
+                console.log("SELECTED BOT MOVE: ")
+                console.log(selectedTestMove);
+                this.move(selectedTestMove);
+                return;
+            }
+        }
+
+        return;
+        
+        // If none of the pseudo-legal moves are legal = Checkmate OR Draw
+        if(this.inCheck(asColor)) {
+            alert("Checkmate!");
+        }
+
+        else {
+            alert("Draw!");
+        }
+
+        return;
+    }
+
+    getEvaluatedMoves(moves) {
+        let evaluations = [];
+
+        for(let i = 0; i < moves.length; i++) {
+            this.move(moves[i]);
+
+            evaluations[i] = this.advantage;
+
+            this.unmakeMove(moves[i]);
+        }
+
+        return evaluations;
+    }
+
+    getEvaluation() {
+        let whitePawns = 0;
+        let blackPawns = 0;
+
+        for(let i = 0; i < this.pieces.length; i++) {
+            let currentPiece = this.pieces[i];
+
+            let value = 0;
+
+            value += currentPiece.pieceValue;
+
+            value += SquareValues.getSquareValues(currentPiece.getType(), currentPiece.color, currentPiece.currentSquare);
+
+            if(currentPiece.color === "white") {
+                whitePawns += value;
+            }
+
+            else if(currentPiece.color === "black") {
+                blackPawns += value;
+            }
+        }
+
+        let advantage = (whitePawns - blackPawns) / 100;
+        return advantage;
+    }
+
+    // TODO: Use piece specific methods for performance increase
+    getPossibleMoves(color, checkForCheck) {
+        let possibleMoves = [];
+
+        for(let i = 0; i < this.pieces.length; i++) {
+            let piece = this.pieces[i];
+
+            if(piece.color === color) {
+                possibleMoves.push(...piece.getAllowedMoves(checkForCheck));
+            }
+        }
+
+        return possibleMoves;
     }
 
     mouseMove(point) {
@@ -149,6 +405,12 @@ class Board {
 
         this.canvas.addEventListener("mousemove", event => {
             this.mouseMove(getMousePos(this.canvas, event));
+        });
+
+        document.addEventListener('keydown', event => {
+            if(event.keyCode === 37) {
+                this.unmakeLastMove();
+            }
         });
     }
 
@@ -194,15 +456,15 @@ class Board {
     }
 
     removePiece(piece) {
-        this.pieces.splice(this.pieces.indexOf(piece), 1);
+        spliceByValue(this.pieces, piece);
     }
 
     squareEquals(s1, s2) {
         return s1.x === s2.x && s1.y === s2.y;
     }
 
-    // Color filter is optional
-    getPieces(type, color = false) {
+    // Type and color filters are optional
+    getPieces(type = Piece, color = false) {
         let typePieces = [];
 
         for(let i = 0; i < this.pieces.length; i++) {
@@ -212,5 +474,77 @@ class Board {
         }
 
         return typePieces;
+    }
+
+    getOtherColor(color) {
+        return color === "white" ? "black" : "white";
+    }
+
+    getPieceAt(square) {
+        for(let i = 0; i < this.pieces.length; i++) {
+            if(this.squareEquals(square, this.pieces[i].currentSquare)) {
+                return this.pieces[i];
+            }
+        }
+
+        return false;
+    }
+
+    /* updateChecks() {
+        this.whiteCheck = this.getPieces(King, "white")[0].inCheck();
+        this.blackCheck = this.getPieces(King, "black")[0].inCheck();
+    } */
+
+    resetCheck() {
+        this.whiteCheck = null;
+        this.blackCheck = null;
+    }
+
+    inCheck(color) {
+        if(color === "white") {
+            if(this.whiteCheck === null) {
+                this.whiteCheck = this.getPieces(King, "white")[0].inCheck();
+            }
+
+            return this.whiteCheck;
+        }
+
+        else {
+            if(this.blackCheck === null) {
+                this.blackCheck = this.getPieces(King, "black")[0].inCheck();
+            }
+
+            return this.blackCheck;
+        }
+    }
+
+    inCheckAfter(move, color) {
+        let testBoard = new Board(true, null, this.pieces);
+
+        let newMove = new Move(testBoard, testBoard.getPieceAt(move.fromSquare), move.from, move.to);
+        testBoard.move(newMove);
+        return testBoard.inCheck(color);
+        
+        this.move(move);
+        let inCheck = this.inCheck(color);
+        console.log(this.moves)
+        console.log("UNMAKING MOVE (turn " + this.turn + "): ")
+        console.log(this.moves[this.moves.length - 1])
+        this.unmakeLastMove();
+        console.log(this.moves)
+
+        return inCheck;
+    }
+
+    inBounds(position) {
+        return this.onSquare(position, box(0, 0, this.boardSize, this.boardSize));
+    }
+
+    squareInBounds(square) {
+        return this.onSquare(square, box(1, 1, this.size, this.size));
+    }
+
+    pieceOnBoard(piece) {
+        return this.pieces.includes(piece);
     }
 }
